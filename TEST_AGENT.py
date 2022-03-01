@@ -24,26 +24,23 @@ def test(game):
     y = CNN.NeuralNetwork(env.action_space.n, None).to(device)
     agent = DQN.DQN(hyperparameters.REPLAY_MEMORY_SIZE, hyperparameters.BATCH_SIZE, hyperparameters.GAMMA, 0, 0, hyperparameters.EPSILON_DECAY)
     agent.loadModel(y,game +'.pth')
-    state = deque(maxlen = 4)
     print(y)
     lives = 0
     score = 0
-    obs = env.reset()
-    state.append(getFrame(obs))
-    state.append(getFrame(obs))
-    state.append(getFrame(obs))
-    state.append(getFrame(obs))
+    obs = getFrame(env.reset())
     rewards = []
     avgrewards = []
     cumureward = 0
     games = 1
+    h = torch.zeros([1,1, 512])
+    c  = torch.zeros([1,1, 512])
     while True:
-        action = agent.getPrediction(makeState(state)/255,y)
+        action, h, c = agent.getPrediction(obs/255,y, h, c)
         for i in range(4):
             obs, reward, done, info = env.step(action)
             if done or reward == 1:
                break
-        state.append(getFrame(obs))
+        obs = getFrame(obs)
         score += reward
         cumureward += reward
         env.render()
@@ -53,12 +50,10 @@ def test(game):
         #    lives -= 1
         if done and lives == 0:
             lives = 0
-            obs = env.reset()
+            obs = getFrame(env.reset())
+            h = torch.zeros([1,1, 512])
+            c  = torch.zeros([1,1, 512])
             #obs, reward, done, info = env.step(1)
-            state.append(getFrame(obs))
-            state.append(getFrame(obs))
-            state.append(getFrame(obs))
-            state.append(getFrame(obs))
             print("Score: ", score, " Game: " , games)
             score = 0
             rewards.append(cumureward)
