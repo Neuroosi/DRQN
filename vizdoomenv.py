@@ -107,6 +107,7 @@ class VizdoomEnv(gym.Env):
         self.ammo_state = 0
         self.last_x = 0
         self.last_y = 0
+        self.last_frags = 0
         self.action_space = spaces.Discrete(CONFIGS[level][1])
         self.rewards_stats = {
             'frag': 0,
@@ -168,11 +169,12 @@ class VizdoomEnv(gym.Env):
         done = self.game.is_episode_finished()
         info = {"esessesese": 0.0}
 
-        return self.__collect_observations(), self.shape_rewards(reward), done, info
+        return self.__collect_observations(), self.shape_rewards(), done, info
         
-    def shape_rewards(self, kills):
+    def shape_rewards(self):
         reward_contributions = [
-            self._compute_damage_reward(kills),
+            self._compute_frag_reward(),
+            self._compute_damage_reward(),
             self._compute_ammo_reward(),
             self._compute_health_reward(),
             self._compute_armor_reward(),
@@ -180,6 +182,16 @@ class VizdoomEnv(gym.Env):
         ]
 
         return np.sum(np.array(reward_contributions))
+        
+    def _compute_frag_reward(self):
+        frags = self.game.get_game_variable(GameVariable.FRAGCOUNT)
+        reward = reward_factor_frag * (frags - self.last_frags)
+        if reward > 0:
+            print(reward)
+        self.last_frags = frags
+        self._log_reward_stat('frag', reward)
+
+        return reward
     
     def _respawn_if_dead(self):
         if not self.game.is_episode_finished():
@@ -206,7 +218,7 @@ class VizdoomEnv(gym.Env):
 
         return reward
 
-    def _compute_damage_reward(self, kills):
+    def _compute_damage_reward(self):
         """Computes a reward based on total damage inflicted to enemies since last update."""
         damage_dealt = self.game.get_game_variable(GameVariable.DAMAGECOUNT)
         reward = reward_factor_damage * (damage_dealt - self.last_damage_dealt)
@@ -214,7 +226,7 @@ class VizdoomEnv(gym.Env):
         self.last_damage_dealt = damage_dealt
         self._log_reward_stat('damage', reward)
 
-        return reward + kills
+        return reward
 
     def _compute_health_reward(self):
         """Computes a reward/penalty based on total health change since last update."""
@@ -287,6 +299,11 @@ class VizdoomEnv(gym.Env):
         self.game.respawn_player()
         self.last_x, self.last_y = self._get_player_pos()
         self.ammo_state = self._get_ammo_state()
+        self.last_frags = 0
+        self.last_damage_dealt = 0
+        self.last_health = 0
+        self.last_armor = 0
+        self.ammo_state = 0
 
     def reset(self):
         self.game.new_episode()
