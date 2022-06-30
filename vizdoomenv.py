@@ -167,7 +167,7 @@ class VizdoomEnv(gym.Env):
         reward = self.game.make_action(act)
         self.state = self.game.get_state()
         done = self.game.is_episode_finished()
-        info = {"esessesese": 0.0}
+        info = {"frags": self.last_frags}
 
         return self.__collect_observations(), self.shape_rewards(), done, info
         
@@ -308,7 +308,7 @@ class VizdoomEnv(gym.Env):
     def reset(self):
         self.game.new_episode()
         self.state = self.game.get_state()
-
+        self._reset_player()
         return self.__collect_observations()
 
     def __collect_observations(self):
