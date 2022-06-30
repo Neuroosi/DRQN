@@ -71,26 +71,13 @@ class VizdoomEnv(gym.Env):
         provided (or depth=False and labels=False) the observation will be of type np.ndarray.
         """
 
-        # parse keyword arguments
-        self.depth = kwargs.get("depth", False)
-        self.labels = kwargs.get("labels", False)
-        self.position = kwargs.get("position", False)
-        self.health = kwargs.get("health", False)
-
         # init game
         self.game = vzd.DoomGame()
         self.game.set_screen_resolution(vzd.ScreenResolution.RES_640X480)
         scenarios_dir = os.path.join(os.path.dirname(__file__), "scenarios")
         self.game.load_config(os.path.join(scenarios_dir, CONFIGS[level][0]))
         self.game.set_window_visible(False)
-        self.game.set_depth_buffer_enabled(self.depth)
-        self.game.set_labels_buffer_enabled(self.labels)
         self.game.clear_available_game_variables()
-        if self.position:
-            self.game.add_available_game_variable(vzd.GameVariable.POSITION_X)
-            self.game.add_available_game_variable(vzd.GameVariable.POSITION_Y)
-            self.game.add_available_game_variable(vzd.GameVariable.POSITION_Z)
-            self.game.add_available_game_variable(vzd.GameVariable.ANGLE)
 
         self.game.add_available_game_variable(vzd.GameVariable.HEALTH)
         self.game.add_available_game_variable(vzd.GameVariable.ARMOR)
@@ -108,6 +95,7 @@ class VizdoomEnv(gym.Env):
         self.last_x = 0
         self.last_y = 0
         self.last_frags = 0
+        self.deaths = 0
         self.action_space = spaces.Discrete(CONFIGS[level][1])
         self.rewards_stats = {
             'frag': 0,
@@ -130,28 +118,7 @@ class VizdoomEnv(gym.Env):
                 dtype=np.uint8,
             )
         ]
-        if self.depth:
-            list_spaces.append(
-                spaces.Box(
-                    0,
-                    255,
-                    (self.game.get_screen_height(), self.game.get_screen_width(),),
-                    dtype=np.uint8,
-                )
-            )
-        if self.labels:
-            list_spaces.append(
-                spaces.Box(
-                    0,
-                    255,
-                    (self.game.get_screen_height(), self.game.get_screen_width(),),
-                    dtype=np.uint8,
-                )
-            )
-        if self.position:
-            list_spaces.append(spaces.Box(-np.Inf, np.Inf, (4, 1)))
-        if self.health:
-            list_spaces.append(spaces.Box(0, np.Inf, (1, 1)))
+
         if len(list_spaces) == 1:
             self.observation_space = list_spaces[0]
         else:
@@ -163,12 +130,13 @@ class VizdoomEnv(gym.Env):
         act[action] = 1
         act = np.uint8(act)
         act = act.tolist()
-
-        reward = self.game.make_action(act)
+        
+        reward = self.game.make_action(act, 4)
+        self._respawn_if_dead()
         self.state = self.game.get_state()
         done = self.game.is_episode_finished()
         info = {"frags": self.last_frags}
-
+        
         return self.__collect_observations(), self.shape_rewards(), done, info
         
     def shape_rewards(self):
@@ -185,6 +153,8 @@ class VizdoomEnv(gym.Env):
         
     def _compute_frag_reward(self):
         frags = self.game.get_game_variable(GameVariable.FRAGCOUNT)
+        if frags > 0:
+           print("frags",frags)
         reward = reward_factor_frag * (frags - self.last_frags)
         if reward > 0:
             print(reward)
@@ -199,6 +169,7 @@ class VizdoomEnv(gym.Env):
             if self.game.is_player_dead():
                 self.deaths += 1
                 self._reset_player()
+                print("deaths", self.deaths)
 
     def _compute_distance_reward(self, x, y):
         """Computes a reward/penalty based on the distance travelled since last update."""
@@ -299,44 +270,28 @@ class VizdoomEnv(gym.Env):
         self.game.respawn_player()
         self.last_x, self.last_y = self._get_player_pos()
         self.ammo_state = self._get_ammo_state()
-        self.last_frags = 0
-        self.last_damage_dealt = 0
-        self.last_health = 0
-        self.last_armor = 0
-        self.ammo_state = 0
 
     def reset(self):
         self.game.new_episode()
         self.state = self.game.get_state()
-        self._reset_player()
+        self.last_health = 100
+        self.last_x, self.last_y = self._get_player_pos()
+        self.last_armor = self.last_frags  = self.deaths = 0
+        for k in self.rewards_stats.keys():
+            self.rewards_stats[k] = 0
         return self.__collect_observations()
 
     def __collect_observations(self):
         observation = []
-        if self.state is not None:
-            observation.append(np.transpose(self.state.screen_buffer, (1, 2, 0)))
-            if self.depth:
-                observation.append(self.state.depth_buffer)
-            if self.labels:
-                observation.append(self.state.labels_buffer)
-            if self.position:
-                observation.append(
-                    np.array([self.state.game_variables[i] for i in range(4)])
-                )
-                if self.health:
-                    observation.append(self.state.game_variables[4])
-            elif self.health:
-                observation.append(self.state.game_variables[0])
-        else:
             # there is no state in the terminal step, so a "zero observation is returned instead"
-            if isinstance(self.observation_space, gym.spaces.box.Box):
+        if isinstance(self.observation_space, gym.spaces.box.Box):
                 # Box isn't iterable
-                obs_space = [self.observation_space]
-            else:
-                obs_space = self.observation_space
+           obs_space = [self.observation_space]
+        else:
+           obs_space = self.observation_space
 
-            for space in obs_space:
-                observation.append(np.zeros(space.shape, dtype=space.dtype))
+        for space in obs_space:
+           observation.append(np.zeros(space.shape, dtype=space.dtype))
 
         # if there is only one observation, return obs as array to sustain compatibility
         if len(observation) == 1:

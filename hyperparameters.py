@@ -1,12 +1,13 @@
-learning_rate = 0.00025 ## 0.00025 ~ 100avg reward after 10m iterations 0.00001 lr to achieve around 280 avr reward
+learning_rate = 0.0001 ## 0.00025 ~ 100avg reward after 10m iterations 0.00001 lr to achieve around 280 avr reward
 EPISODES = 5000
-INPUTSIZE = (84,84)
+INPUTSIZE = (156,100) ## (156,100) for atari, flappy
 START_TRAINING_AT_STEP = 50000
 TRAINING_FREQUENCY = 4
 TARGET_NET_UPDATE_FREQUENCY = 10000
-REPLAY_MEMORY_SIZE=2*10**5 ## 2*10**5 for atari,
+REPLAY_MEMORY_SIZE=250000 ## 2*10**5 for atari,
 BATCH_SIZE = 32
 GAMMA = 0.99 #0.99
 EPSILON = 1
 EPSILON_MIN = 0.1
 EPSILON_DECAY = 250000
+FRAME_SKIP = 1
