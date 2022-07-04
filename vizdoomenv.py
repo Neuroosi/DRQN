@@ -78,7 +78,7 @@ class VizdoomEnv(gym.Env):
         self.game.load_config(os.path.join(scenarios_dir, CONFIGS[level][0]))
         self.game.set_window_visible(False)
         self.game.clear_available_game_variables()
-
+        self.game.add_game_args('-host 1 -deathmatch 1')  
         self.game.add_available_game_variable(vzd.GameVariable.HEALTH)
         self.game.add_available_game_variable(vzd.GameVariable.ARMOR)
         for i in range(len(AMMO_VARIABLES)):
@@ -86,6 +86,9 @@ class VizdoomEnv(gym.Env):
         for i in range(len(WEAPON_VARIABLES)):
             self.game.add_available_game_variable(WEAPON_VARIABLES[i])
         self.game.init()
+        for i in range(8):
+            self.game.send_game_command('addbot')
+      
         self.state = None
         self.viewer = None
         self.last_damage_dealt = 0
@@ -132,12 +135,13 @@ class VizdoomEnv(gym.Env):
         act = act.tolist()
         
         reward = self.game.make_action(act, 4)
+        #self.last_frags += np.sign(reward)
         self._respawn_if_dead()
         self.state = self.game.get_state()
         done = self.game.is_episode_finished()
-        info = {"frags": self.last_frags}
-        
-        return self.__collect_observations(), self.shape_rewards(), done, info
+        info = {"frags": self.last_frags, "deaths": self.deaths}
+        reward = self.shape_rewards()
+        return self.__collect_observations(), reward, done, info
         
     def shape_rewards(self):
         reward_contributions = [
@@ -148,19 +152,18 @@ class VizdoomEnv(gym.Env):
             self._compute_armor_reward(),
             self._compute_distance_reward(*self._get_player_pos()),
         ]
-
-        return np.sum(np.array(reward_contributions))
+        
+        
+        reward = np.sum(np.array(reward_contributions))
+        if np.abs(reward) > 1:
+             print(reward_contributions)
+        return reward
         
     def _compute_frag_reward(self):
         frags = self.game.get_game_variable(GameVariable.FRAGCOUNT)
-        if frags > 0:
-           print("frags",frags)
         reward = reward_factor_frag * (frags - self.last_frags)
-        if reward > 0:
-            print(reward)
         self.last_frags = frags
         self._log_reward_stat('frag', reward)
-
         return reward
     
     def _respawn_if_dead(self):
@@ -169,7 +172,6 @@ class VizdoomEnv(gym.Env):
             if self.game.is_player_dead():
                 self.deaths += 1
                 self._reset_player()
-                print("deaths", self.deaths)
 
     def _compute_distance_reward(self, x, y):
         """Computes a reward/penalty based on the distance travelled since last update."""
@@ -193,7 +195,6 @@ class VizdoomEnv(gym.Env):
         """Computes a reward based on total damage inflicted to enemies since last update."""
         damage_dealt = self.game.get_game_variable(GameVariable.DAMAGECOUNT)
         reward = reward_factor_damage * (damage_dealt - self.last_damage_dealt)
-
         self.last_damage_dealt = damage_dealt
         self._log_reward_stat('damage', reward)
 
@@ -270,6 +271,12 @@ class VizdoomEnv(gym.Env):
         self.game.respawn_player()
         self.last_x, self.last_y = self._get_player_pos()
         self.ammo_state = self._get_ammo_state()
+        
+    def _reset_bots(self):
+    # Make sure you have the bots.cfg file next to the program entry point.
+        self.game.send_game_command('removebots')
+        for i in range(8):
+            self.game.send_game_command('addbot')
 
     def reset(self):
         self.game.new_episode()
@@ -277,21 +284,25 @@ class VizdoomEnv(gym.Env):
         self.last_health = 100
         self.last_x, self.last_y = self._get_player_pos()
         self.last_armor = self.last_frags  = self.deaths = 0
+        self._reset_bots()
         for k in self.rewards_stats.keys():
             self.rewards_stats[k] = 0
         return self.__collect_observations()
 
     def __collect_observations(self):
         observation = []
-            # there is no state in the terminal step, so a "zero observation is returned instead"
-        if isinstance(self.observation_space, gym.spaces.box.Box):
-                # Box isn't iterable
-           obs_space = [self.observation_space]
+        if self.state is not None:
+            observation.append(np.transpose(self.state.screen_buffer, (1, 2, 0)))
         else:
-           obs_space = self.observation_space
+            # there is no state in the terminal step, so a "zero observation is returned instead"
+            if isinstance(self.observation_space, gym.spaces.box.Box):
+                # Box isn't iterable
+                obs_space = [self.observation_space]
+            else:
+                obs_space = self.observation_space
 
-        for space in obs_space:
-           observation.append(np.zeros(space.shape, dtype=space.dtype))
+            for space in obs_space:
+                observation.append(np.zeros(space.shape, dtype=space.dtype))
 
         # if there is only one observation, return obs as array to sustain compatibility
         if len(observation) == 1:
