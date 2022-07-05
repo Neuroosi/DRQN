@@ -34,27 +34,32 @@ def test(game):
     games = 1
     h = torch.zeros([1,1, 512])
     c  = torch.zeros([1,1, 512])
+    total_kills = 0
+    total_games = 0
     while True:
         action, h, c = agent.getPrediction(obs/255,y, h, c)
-        for i in range(4):
+        for i in range(hyperparameters.FRAME_SKIP):
             obs, reward, done, info = env.step(action)
-            if done or reward == 1:
-               break
+            if done:
+                break
         obs = getFrame(obs)
-        score += reward
         cumureward += reward
+        kills = info["frags"]
+        deaths = info["deaths"]
         env.render()
         #time.sleep(1/30)
         #if info["ale.lives"] < lives:
         #    done = True
         #    lives -= 1
         if done and lives == 0:
+            total_kills += kills
+            total_games += 1
             lives = 0
             obs = getFrame(env.reset())
             h = torch.zeros([1,1, 512])
             c  = torch.zeros([1,1, 512])
             #obs, reward, done, info = env.step(1)
-            print("Score: ", score, " Game: " , games)
+            print("Score: ", cumureward, " Game: " , games, " kills ", kills, " avg kills", total_kills/total_games)
             score = 0
             rewards.append(cumureward)
             avgrewards.append(np.sum(np.array(rewards))/games)
@@ -69,7 +74,9 @@ if __name__ == "__main__":
     #game = "SpaceInvadersDeterministic-v4"
     #game = "PongDeterministic-v4"
     #game = "RobotankDeterministic-v4"
-    game = "VizdoomDefendCenter-v0"
-    #game = "VizdoomDeathmatch-v0"
+    #game = "VizdoomDefendCenter-v0"
+    #game = "VizdoomPredictPosition-v0"
+    #game = "VizdoomHealthGathering-v0"
+    game = "VizdoomDeathmatch-v0"
     #game = 'FlappyBird-v0'
     test(game)
