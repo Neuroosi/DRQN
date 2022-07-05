@@ -34,7 +34,7 @@ reward_factor_health_increment = 0.02
 reward_factor_health_decrement = -0.01
 reward_factor_armor_increment = 0.01
 
-
+MAPS = ["map01", "map02", "map03", "map04", "map05", "map06", "map07", "map08", "map09", "map10", "map11",  "map13", "map14", "map15", "map16", "map17", "map18", "map19", "map20"]
 
 CONFIGS = [
     ["basic.cfg", 3],  # 0
@@ -78,7 +78,7 @@ class VizdoomEnv(gym.Env):
         self.game.load_config(os.path.join(scenarios_dir, CONFIGS[level][0]))
         self.game.set_window_visible(False)
         self.game.clear_available_game_variables()
-        self.game.add_game_args('-host 1 -deathmatch 1')  
+        self.game.add_game_args('-host 1 -deathmatch 1 -nomonsters 1')  
         self.game.add_available_game_variable(vzd.GameVariable.HEALTH)
         self.game.add_available_game_variable(vzd.GameVariable.ARMOR)
         for i in range(len(AMMO_VARIABLES)):
@@ -279,6 +279,9 @@ class VizdoomEnv(gym.Env):
             self.game.send_game_command('addbot')
 
     def reset(self):
+        mapp = np.random.choice(MAPS)
+        print("map", mapp)
+        self.game.set_doom_map(mapp)
         self.game.new_episode()
         self.state = self.game.get_state()
         self.last_health = 100
