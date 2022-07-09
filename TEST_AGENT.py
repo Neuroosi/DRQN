@@ -50,11 +50,9 @@ def test(game):
         pred_output = y.forward2(enemy_frame / 255)
         pred_output_p = y.sigmoid(pred_output)
         pred_labels = (pred_output_p > 0.5).float()
-        if enemy_in_frame == 1.0:
-            preds += 1
-        if pred_labels.item() == enemy_in_frame and enemy_in_frame == 1.0:
+        if pred_labels.item() == enemy_in_frame:
             correct += 1
-        if enemy_in_frame == 1.0:
+        if pred_labels.item() == 1.0:
             action, h, c = actor.getPrediction(obs /255,y, h, c)
         else:
             action = navigator.getPrediction(obs / 255, y_navigator)
@@ -66,10 +64,9 @@ def test(game):
         cumureward += reward
         kills = info["frags"]
         deaths = info["deaths"]
-        deaths_var = info["deaths2"]
         env.render()
         steps += 1
-        #time.sleep(1/30)
+        time.sleep(1/30)
         #if info["ale.lives"] < lives:
         #    done = True
         #    lives -= 1
