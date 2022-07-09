@@ -29,6 +29,7 @@ def train(game):
     loss_fn = nn.HuberLoss()
     loss_fn_detector = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(y.parameters(), lr = hyperparameters.learning_rate)
+    optimizer_navi = optim.Adam(y_navigator.parameters(), lr = hyperparameters.learning_rate)
     actor = DRQN.DRQN(hyperparameters.REPLAY_MEMORY_SIZE, hyperparameters.BATCH_SIZE, hyperparameters.GAMMA, hyperparameters.EPSILON, hyperparameters.EPSILON_MIN, hyperparameters.EPSILON_DECAY)
     navigator = DQN.DQN(hyperparameters.REPLAY_MEMORY_SIZE, hyperparameters.BATCH_SIZE, hyperparameters.GAMMA, hyperparameters.EPSILON, hyperparameters.EPSILON_MIN, hyperparameters.EPSILON_DECAY)
     state = deque(maxlen = 4)
@@ -80,7 +81,7 @@ def train(game):
             ##Train the agent
             if len(actor.replay_memory) >= hyperparameters.START_TRAINING_AT_STEP and frames_seen % hyperparameters.TRAINING_FREQUENCY == 0:
                 loss, accuracy = actor.train(y, target_y, loss_fn, loss_fn_detector,  optimizer)
-                loss_navi = navigator.train(y_navigator, y_navigator_target, loss_fn,  optimizer)
+                loss_navi = navigator.train(y_navigator, y_navigator_target, loss_fn,  optimizer_navi)
             ##Update target network  
             if len(actor.replay_memory) >= hyperparameters.START_TRAINING_AT_STEP and frames_seen % hyperparameters.TARGET_NET_UPDATE_FREQUENCY == 0:
                 target_y.load_state_dict(y.state_dict())
@@ -98,7 +99,7 @@ def train(game):
                 total_kills += kills
                 break
             
-        print("kills",kills,"avg kills", total_kills/games_played,"deaths", deaths,"Score:", cumureward,"score2:",cumureward2," Episode:", episode, " frames_seen:", frames_seen , " Epsilon:", actor.EPSILON)
+        print("kills",kills,"avg kills", total_kills/games_played,"deaths", deaths,"Score:", cumureward,"score2:",cumureward2," Episode:", episode, " frames_seen:", frames_seen , " ACTOR_Epsilon:", actor.EPSILON, "NAVI_Epsilon", navigator.EPSILON)
         print(loss, loss_navi, accuracy)
         if loss is not None:
             wandb.log({"avg kills": total_kills/games_played,"kills": kills,"Reward per episode":cumureward, "Avg reward":(np.sum(np.array(rewards))/episode), "Loss":loss, "accuracy": accuracy, "navi loss": loss_navi})
