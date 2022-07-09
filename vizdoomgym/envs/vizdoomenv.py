@@ -26,16 +26,16 @@ penalty_factor_distance = -2.5e-3
 reward_threshold_distance = 3.0
 
 # Pistol clips have 10 bullets
-reward_factor_ammo_increment = 0.02
-reward_factor_ammo_decrement = -0.01
+reward_factor_ammo_increment = 0.002
+reward_factor_ammo_decrement = -0.001
 
 # Player starts at 100 health
 reward_factor_health_increment = 0.02
 reward_factor_health_decrement = -0.01
 reward_factor_armor_increment = 0.01
 
-MAPS = ["map01", "map02", "map03", "map04", "map05", "map06", "map07", "map08", "map09", "map10", "map11",  "map13", "map14", "map15", "map16", "map17", "map18", "map19", "map20"]
-
+#MAPS = ["map01", "map02", "map03", "map04", "map05", "map06", "map07", "map08", "map09", "map10", "map11",  "map13", "map14", "map15", "map16", "map17", "map18", "map19", "map20"]
+#MAPS = ["map33"]
 CONFIGS = [
     ["basic.cfg", 3],  # 0
     ["deadly_corridor.cfg", 7],  # 1
@@ -73,6 +73,8 @@ class VizdoomEnv(gym.Env):
 
         # init game
         self.game = vzd.DoomGame()
+        self.game.set_labels_buffer_enabled(True)
+        self.game.set_doom_map("map07")
         self.game.set_screen_resolution(vzd.ScreenResolution.RES_640X480)
         scenarios_dir = os.path.join(os.path.dirname(__file__), "scenarios")
         self.game.load_config(os.path.join(scenarios_dir, CONFIGS[level][0]))
@@ -139,9 +141,11 @@ class VizdoomEnv(gym.Env):
         self._respawn_if_dead()
         self.state = self.game.get_state()
         done = self.game.is_episode_finished()
-        info = {"frags": self.last_frags, "deaths": self.deaths}
-        reward = self.shape_rewards()
-        return self.__collect_observations(), reward, done, info
+        info = {"frags": self.last_frags, "deaths": self.deaths, "deaths2": self.game.get_game_variable(GameVariable.DEATHCOUNT)}
+        reward, reward2 = self.shape_rewards()
+        if done is False:
+        	return self.__collect_observations(), reward, reward2, done, info, self.state.labels
+        return self.__collect_observations(), reward, reward2, done, info, None
         
     def shape_rewards(self):
         reward_contributions = [
@@ -154,10 +158,8 @@ class VizdoomEnv(gym.Env):
         ]
         
         
-        reward = np.sum(np.array(reward_contributions))
-        if np.abs(reward) > 1:
-             print(reward_contributions)
-        return reward
+        reward = np.sum(np.array(reward_contributions[:-3]))
+        return reward, np.sum(np.array(reward_contributions[2:]))
         
     def _compute_frag_reward(self):
         frags = self.game.get_game_variable(GameVariable.FRAGCOUNT)
@@ -279,9 +281,9 @@ class VizdoomEnv(gym.Env):
             self.game.send_game_command('addbot')
 
     def reset(self):
-        mapp = np.random.choice(MAPS)
-        print("map", mapp)
-        self.game.set_doom_map(mapp)
+        #mapp = np.random.choice(MAPS)
+        #print("map", mapp)
+        #self.game.set_doom_map(mapp)
         self.game.new_episode()
         self.state = self.game.get_state()
         self.last_health = 100
@@ -290,7 +292,8 @@ class VizdoomEnv(gym.Env):
         self._reset_bots()
         for k in self.rewards_stats.keys():
             self.rewards_stats[k] = 0
-        return self.__collect_observations()
+        return self.__collect_observations(),self.state.labels
+        
 
     def __collect_observations(self):
         observation = []
