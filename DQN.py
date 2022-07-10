@@ -18,7 +18,7 @@ class DQN(nn.Module):
         self.REPLAY_MEMORY_SIZE = replay_memory_size
         self.BATCH_SIZE = batch_size
         self.GAMMA = gamma
-        self.EPSILON = epsilon
+        self.EPSILON = 1
         self.EPSILON_MIN = epsilon_min
         self.EPSILON_DECAY = (self.EPSILON-self.EPSILON_MIN)/epsilon_decay
 
@@ -31,11 +31,11 @@ class DQN(nn.Module):
         states = [torch.from_numpy(np.array(transition[0])/255) for transition in batch]
         states = torch.stack(states)
         states = states.float()
-        states = torch.unsqueeze(states,axis = 1)
+        #states = torch.unsqueeze(states,axis = 1)
         next_states = [torch.from_numpy(np.array(transition[3])/255) for transition in batch]
         next_states = torch.stack(next_states)
         next_states = next_states.float()
-        next_states = torch.unsqueeze(next_states,axis = 1)
+        #next_states = torch.unsqueeze(next_states,axis = 1)
         optimizer.zero_grad()
         y = agent(states)
         target_y = target(next_states)
@@ -62,6 +62,7 @@ class DQN(nn.Module):
         for param in agent.parameters():
             param.grad.data.clamp_(-1, 1)
         optimizer.step()
+        self.EPSILON = max(self.EPSILON_MIN, self.EPSILON-self.EPSILON_DECAY)
         return loss.item()
 
 
