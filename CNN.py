@@ -60,7 +60,7 @@ class NeuralNetwork_Forward(nn.Module):
         self.actionSpaceSize = actionSpaceSize
         self.obsSpaceSize = obsSpaceSize
         super(NeuralNetwork_Forward, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, 8, 4)
+        self.conv1 = nn.Conv2d(4, 32, 8, 4)
         torch.nn.init.kaiming_uniform_(self.conv1.weight)
         self.conv2 = nn.Conv2d(32, 64, 4, 2)
         torch.nn.init.kaiming_uniform_(self.conv2.weight)
@@ -76,6 +76,7 @@ class NeuralNetwork_Forward(nn.Module):
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
+        x = torch.squeeze(x, axis = 0)
         x = x.to(device)
         x = self.relu(self.conv1(x))
         x = self.relu(self.conv2(x))

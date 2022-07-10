@@ -37,7 +37,7 @@ def train(game):
     answer = input("Use a pre-trained model y/n? ")
     if answer == "y":
         actor.loadModel(y,'actor.pth')
-        navigator.loadModel(y_navigator, 'navigato.pth')
+        #navigator.loadModel(y_navigator, 'navigato.pth')
     frames_seen = 0
     rewards = []
     avgrewards = []
@@ -48,6 +48,10 @@ def train(game):
         loss = loss_navi = accuracy= None
         obs,labels = env.reset()
         obs = getFrame(obs)
+        state.append(obs)
+        state.append(obs)
+        state.append(obs)
+        state.append(obs)
         cumureward = 0
         cumureward2 = 0
         kills = 0 ## 5 for breakout, 3 for spaceinvaders, 0 for pong, 3 for robotank :D
@@ -59,7 +63,7 @@ def train(game):
             if enemy_in_frame == 1.0:
                 action, h, c = actor.getPrediction(obs /255,y, h, c)
             else:
-                action = navigator.getPrediction(obs / 255, y_navigator)
+                action = navigator.getPrediction(makeState(state) / 255, y_navigator)
             ##Repeat same action four times for flappybird/doom otherwise set it to one.
 
             for repeat in range(hyperparameters.FRAME_SKIP):
@@ -73,11 +77,13 @@ def train(game):
             #    done = True
             #    lives -= 1
             obs = getFrame(obs)
+            cache = state.copy()
+            state.append(obs)
             #env.render()
             #agent.update_replay_memory((obs_prev, action, clip_reward(reward), obs , done))
             actor.update_replay_memory((obs_prev, action, reward, obs , done, enemy_in_frame))
             if action == 3 or action == 4 or action == 5:
-                navigator.update_replay_memory((obs_prev, action, reward2, obs , done))
+                navigator.update_replay_memory((makeState(cache), action, reward2, makeState(state) , done))
             ##Train the agent
             if len(actor.replay_memory) >= hyperparameters.START_TRAINING_AT_STEP and frames_seen % hyperparameters.TRAINING_FREQUENCY == 0:
                 loss, accuracy = actor.train(y, target_y, loss_fn, loss_fn_detector,  optimizer)
