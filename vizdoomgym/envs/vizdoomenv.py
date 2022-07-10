@@ -159,6 +159,14 @@ class VizdoomEnv(gym.Env):
         
         
         reward = np.sum(np.array(reward_contributions[:-3]))
+        if reward_contributions[2] < 0:
+             reward_contributions[2] = 0
+        if reward_contributions[4] < 0:
+             reward_contributions[4] = 0
+        if reward_contributions[3] < 0:
+             reward_contributions[3] = 0
+        if reward_contributions[3] < 0:
+             reward_contributions[3] = 0
         return reward, np.sum(np.array(reward_contributions[2:]))
         
     def _compute_frag_reward(self):
@@ -183,7 +191,7 @@ class VizdoomEnv(gym.Env):
         distance = np.sqrt(dx ** 2 + dy ** 2)
 
         if distance - reward_threshold_distance > 0:
-            reward = reward_factor_distance
+            reward = distance * reward_factor_distance
         else:
             reward = -reward_factor_distance
 
