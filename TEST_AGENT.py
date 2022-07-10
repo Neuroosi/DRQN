@@ -33,6 +33,11 @@ def test(game):
     score = 0
     obs,labels = env.reset()
     obs = getFrame(obs)
+    state = deque(maxlen = 4)
+    state.append(obs)
+    state.append(obs)
+    state.append(obs)
+    state.append(obs)
     rewards = []
     avgrewards = []
     cumureward = 0
@@ -50,12 +55,13 @@ def test(game):
         pred_output = y.forward2(enemy_frame / 255)
         pred_output_p = y.sigmoid(pred_output)
         pred_labels = (pred_output_p > 0.5).float()
+        preds += 1
         if pred_labels.item() == enemy_in_frame:
             correct += 1
         if pred_labels.item() == 1.0:
             action, h, c = actor.getPrediction(obs /255,y, h, c)
         else:
-            action = navigator.getPrediction(obs / 255, y_navigator)
+            action = navigator.getPrediction(makeState(state) / 255, y_navigator)
         for i in range(hyperparameters.FRAME_SKIP):
             obs, reward, reward2, done, info, labels = env.step(action)
             if done:
@@ -65,8 +71,9 @@ def test(game):
         kills = info["frags"]
         deaths = info["deaths"]
         env.render()
+        state.append(obs)
         steps += 1
-        time.sleep(1/30)
+        #time.sleep(1/30)
         #if info["ale.lives"] < lives:
         #    done = True
         #    lives -= 1
@@ -78,6 +85,10 @@ def test(game):
             steps = 0
             obs, labels = env.reset()
             obs = getFrame(obs)
+            state.append(obs)
+            state.append(obs)
+            state.append(obs)
+            state.append(obs)
             h = torch.zeros([1,1, 512])
             c  = torch.zeros([1,1, 512])
             #obs, reward, done, info = env.step(1)
