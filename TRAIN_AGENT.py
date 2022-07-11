@@ -11,7 +11,7 @@ import vizdoomgym
 import DRQN
 import DQN
 import CNN
-from process_state import check_if_enemy_in_obs, clip_reward, makeState, getFrame
+from process_state import ammo_left, check_if_enemy_in_obs, clip_reward, makeState, getFrame
 import hyperparameters
 import time
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -37,13 +37,15 @@ def train(game):
     answer = input("Use a pre-trained model y/n? ")
     if answer == "y":
         actor.loadModel(y,'actor.pth')
-        #navigator.loadModel(y_navigator, 'navigato.pth')
+        navigator.loadModel(y_navigator, 'navigato.pth')
     frames_seen = 0
     rewards = []
     avgrewards = []
     wandb.init(project="DRQN_" +game, entity="neuroori") 
     games_played = 0
     total_kills = 0
+    ammo = np.zeros(10)
+    weapon = np.zeros(10)
     for episode in range(1,hyperparameters.EPISODES+500000000000):
         loss = loss_navi = accuracy= None
         obs,labels = env.reset()
@@ -60,14 +62,13 @@ def train(game):
         while True:
             obs_prev = obs
             enemy_in_frame = check_if_enemy_in_obs(labels)
-            if enemy_in_frame == 1.0:
+            if enemy_in_frame == 1.0 and ammo_left(weapon, ammo) is True:
                 action, h, c = actor.getPrediction(obs /255,y, h, c)
             else:
                 action = navigator.getPrediction(makeState(state) / 255, y_navigator)
             ##Repeat same action four times for flappybird/doom otherwise set it to one.
-
             for repeat in range(hyperparameters.FRAME_SKIP):
-                obs, reward, reward2, done, info, labels = env.step(action)
+                obs, reward, reward2, done, info, labels, ammo, weapon= env.step(action)
                 if done:
                     break
             kills = info["frags"]
@@ -79,7 +80,7 @@ def train(game):
             obs = getFrame(obs)
             cache = state.copy()
             state.append(obs)
-            #env.render()
+            env.render()
             #agent.update_replay_memory((obs_prev, action, clip_reward(reward), obs , done))
             actor.update_replay_memory((obs_prev, action, reward, obs , done, enemy_in_frame))
             if action == 3 or action == 4 or action == 5:
