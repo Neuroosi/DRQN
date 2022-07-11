@@ -46,6 +46,8 @@ def train(game):
     total_kills = 0
     ammo = np.zeros(10)
     weapon = np.zeros(10)
+    preds = 0
+    correct = 0
     for episode in range(1,hyperparameters.EPISODES+500000000000):
         loss = loss_navi = accuracy= None
         obs,labels = env.reset()
@@ -62,7 +64,14 @@ def train(game):
         while True:
             obs_prev = obs
             enemy_in_frame = check_if_enemy_in_obs(labels)
-            if enemy_in_frame == 1.0 and ammo_left(weapon, ammo) is True:
+            enemy_in_frame_pred = torch.unsqueeze(torch.unsqueeze(torch.from_numpy(np.expand_dims(obs, axis=0)),axis = 0),axis = 0)
+            pred_output = y.forward2(enemy_in_frame_pred / 255)
+            pred_output_p = y.sigmoid(pred_output)
+            pred_labels = (pred_output_p > 0.5).float()
+            preds += 1
+            if pred_labels.item() == enemy_in_frame:
+                correct += 1
+            if pred_labels.item() == 1.0 and ammo_left(weapon, ammo) is True:
                 action, h, c = actor.getPrediction(obs /255,y, h, c)
             else:
                 action = navigator.getPrediction(makeState(state) / 255, y_navigator)
@@ -82,7 +91,8 @@ def train(game):
             state.append(obs)
             env.render()
             #agent.update_replay_memory((obs_prev, action, clip_reward(reward), obs , done))
-            actor.update_replay_memory((obs_prev, action, reward, obs , done, enemy_in_frame))
+            if pred_labels.item() == 1.0:
+                actor.update_replay_memory((obs_prev, action, reward, obs , done, enemy_in_frame))
             if action == 3 or action == 4 or action == 5:
                 navigator.update_replay_memory((makeState(cache), action, reward2, makeState(state) , done))
             ##Train the agent
@@ -106,10 +116,10 @@ def train(game):
                 total_kills += kills
                 break
             
-        print("kills",kills,"avg kills", total_kills/games_played,"deaths", deaths,"Score:", cumureward,"score2:",cumureward2," Episode:", episode, " frames_seen:", frames_seen , " ACTOR_Epsilon:", actor.EPSILON, "NAVI_Epsilon", navigator.EPSILON)
+        print("kills",kills,"avg kills", total_kills/games_played,"deaths", deaths,"Score:", cumureward,"score2:",cumureward2," Episode:", episode, " frames_seen:", frames_seen , " ACTOR_Epsilon:", actor.EPSILON, "NAVI_Epsilon", navigator.EPSILON, " game_accuracy", correct/preds)
         print(loss, loss_navi, accuracy)
         if loss is not None:
-            wandb.log({"avg kills": total_kills/games_played,"kills": kills,"Reward per episode":cumureward, "Avg reward":(np.sum(np.array(rewards))/episode), "Loss":loss, "accuracy": accuracy, "navi loss": loss_navi})
+            wandb.log({"avg kills": total_kills/games_played,"kills": kills,"Reward per episode":cumureward, "Avg reward":(np.sum(np.array(rewards))/episode), "Loss":loss, "training_accuracy": accuracy, "navi loss": loss_navi, " game_accuracy": correct/preds})
 
 if __name__ == "__main__":
     #game = 'BreakoutDeterministic-v4'
