@@ -158,7 +158,7 @@ class VizdoomEnv(gym.Env):
         ]
         
         
-        reward = np.sum(np.array(reward_contributions[:-3]))
+        reward = np.sum(np.array(reward_contributions[:-1]))
         if reward_contributions[2] < 0:
              reward_contributions[2] = 0
         if reward_contributions[4] < 0:
