@@ -91,7 +91,7 @@ def train(game):
             state.append(obs)
             env.render()
             #agent.update_replay_memory((obs_prev, action, clip_reward(reward), obs , done))
-            if pred_labels.item() == 1.0:
+            if pred_labels.item() == 1.0 or (enemy_in_frame == 1.0 and  frames_seen <100000):
                 actor.update_replay_memory((obs_prev, action, reward, obs , done, enemy_in_frame))
             if action == 3 or action == 4 or action == 5:
                 navigator.update_replay_memory((makeState(cache), action, reward2, makeState(state) , done))
@@ -116,7 +116,7 @@ def train(game):
                 total_kills += kills
                 break
             
-        print("kills",kills,"avg kills", total_kills/games_played,"deaths", deaths,"Score:", cumureward,"score2:",cumureward2," Episode:", episode, " frames_seen:", frames_seen , " ACTOR_Epsilon:", actor.EPSILON, "NAVI_Epsilon", navigator.EPSILON, " game_accuracy", correct/preds)
+        print("kills",kills,"avg kills", total_kills/games_played,"deaths", deaths,"Score:", cumureward,"score2:",cumureward2," Episode:", episode, " frames_seen:", frames_seen , " ACTOR_Epsilon:", actor.EPSILON, "NAVI_Epsilon", navigator.EPSILON, " game_accuracy", correct/preds, "actor_replay_memeory_len", len(actor.replay_memory))
         print(loss, loss_navi, accuracy)
         if loss is not None:
             wandb.log({"avg kills": total_kills/games_played,"kills": kills,"Reward per episode":cumureward, "Avg reward":(np.sum(np.array(rewards))/episode), "Loss":loss, "training_accuracy": accuracy, "navi loss": loss_navi, " game_accuracy": correct/preds})
