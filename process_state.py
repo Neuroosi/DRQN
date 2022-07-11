@@ -41,3 +41,9 @@ def check_if_enemy_in_obs(labels):
         if value != 255 and name == 'DoomPlayer':
             return 1.0
     return 0.0
+
+def ammo_left(weapons, ammo):
+    for i in range(len(weapons)):
+        if ammo[i] > 0 and weapons[i] >= 1:
+            return True
+    return False
