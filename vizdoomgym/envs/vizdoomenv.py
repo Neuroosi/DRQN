@@ -144,8 +144,8 @@ class VizdoomEnv(gym.Env):
         info = {"frags": self.last_frags, "deaths": self.deaths, "deaths2": self.game.get_game_variable(GameVariable.DEATHCOUNT)}
         reward, reward2 = self.shape_rewards()
         if done is False:
-        	return self.__collect_observations(), reward, reward2, done, info, self.state.labels
-        return self.__collect_observations(), reward, reward2, done, info, None
+        	return self.__collect_observations(), reward, reward2, done, info, self.state.labels, self.ammo_state, self.weapon_state
+        return self.__collect_observations(), reward, reward2, done, info, None,self.ammo_state, self.weapon_state
         
     def shape_rewards(self):
         reward_contributions = [
