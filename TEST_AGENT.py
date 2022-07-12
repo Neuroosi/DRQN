@@ -13,7 +13,7 @@ import DRQN
 import DQN
 import CNN
 import hyperparameters
-from process_state import check_if_enemy_in_obs, getFrame, clip_reward, makeState
+from process_state import check_if_enemy_in_obs, getFrame, clip_reward, makeState, ammo_left
 import time
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -49,6 +49,8 @@ def test(game):
     steps = 0
     preds = 0
     correct = 0
+    ammo = np.zeros(10)
+    weapon = np.zeros(10)
     while True:
         enemy_in_frame = check_if_enemy_in_obs(labels)
         enemy_frame = torch.unsqueeze(torch.unsqueeze(torch.from_numpy(np.expand_dims(obs, axis=0)),axis = 0),axis = 0)
@@ -58,12 +60,12 @@ def test(game):
         preds += 1
         if pred_labels.item() == enemy_in_frame:
             correct += 1
-        if pred_labels.item() == 1.0:
+        if pred_labels.item() == 1.0 and ammo_left(weapon, ammo) is True:
             action, h, c = actor.getPrediction(obs /255,y, h, c)
         else:
             action = navigator.getPrediction(makeState(state) / 255, y_navigator)
         for i in range(hyperparameters.FRAME_SKIP):
-            obs, reward, reward2, done, info, labels = env.step(action)
+            obs, reward, reward2, done, info, labels, ammo, weapon = env.step(action)
             if done:
                 break
         obs = getFrame(obs)
@@ -73,7 +75,7 @@ def test(game):
         env.render()
         state.append(obs)
         steps += 1
-        #time.sleep(1/30)
+        time.sleep(1/30)
         #if info["ale.lives"] < lives:
         #    done = True
         #    lives -= 1
