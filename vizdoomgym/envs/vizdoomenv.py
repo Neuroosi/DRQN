@@ -150,7 +150,6 @@ class VizdoomEnv(gym.Env):
     def shape_rewards(self):
         reward_contributions = [
             self._compute_frag_reward(),
-            self._compute_damage_reward(),
             self._compute_ammo_reward(),
             self._compute_health_reward(),
             self._compute_armor_reward(),
@@ -159,15 +158,13 @@ class VizdoomEnv(gym.Env):
         
         
         reward = np.sum(np.array(reward_contributions[:-1]))
+        if reward_contributions[1] < 0:
+             reward_contributions[1] = 0
         if reward_contributions[2] < 0:
              reward_contributions[2] = 0
-        if reward_contributions[4] < 0:
-             reward_contributions[4] = 0
         if reward_contributions[3] < 0:
              reward_contributions[3] = 0
-        if reward_contributions[3] < 0:
-             reward_contributions[3] = 0
-        return reward, np.sum(np.array(reward_contributions[2:]))
+        return reward, np.sum(np.array(reward_contributions[1:]))
         
     def _compute_frag_reward(self):
         frags = self.game.get_game_variable(GameVariable.FRAGCOUNT)

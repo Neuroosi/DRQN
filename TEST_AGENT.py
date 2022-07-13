@@ -75,7 +75,7 @@ def test(game):
         env.render()
         state.append(obs)
         steps += 1
-        time.sleep(1/30)
+        #time.sleep(1/30)
         #if info["ale.lives"] < lives:
         #    done = True
         #    lives -= 1
@@ -105,13 +105,5 @@ def test(game):
     print(np.sum(np.array(rewards))/games)
 
 if __name__ == "__main__":
-    #game = 'BreakoutDeterministic-v4'
-    #game = "SpaceInvadersDeterministic-v4"
-    #game = "PongDeterministic-v4"
-    #game = "RobotankDeterministic-v4"
-    #game = "VizdoomDefendCenter-v0"
-    #game = "VizdoomPredictPosition-v0"
-    #game = "VizdoomHealthGathering-v0"
     game = "VizdoomDeathmatch-v0"
-    #game = 'FlappyBird-v0'
     test(game)

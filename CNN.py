@@ -17,9 +17,11 @@ class NeuralNetwork_Recurrent(nn.Module):
         self.conv3 = nn.Conv2d(64, 64, 3, 1)
         torch.nn.init.kaiming_uniform_(self.conv3.weight)
 
-        self.fc1 = nn.Linear(2560, 512)
-        self.lstm = nn.LSTM(input_size = 2560, hidden_size = 512, batch_first = False)
-        #torch.nn.init.kaiming_uniform_(self.fc1.weight)
+        self.fc1 = nn.Linear(2560, 4090)
+        self.fc1_ = nn.Linear(2560, 512)
+        self.lstm = nn.LSTM(input_size = 4090, hidden_size = 512, batch_first = False)
+        torch.nn.init.kaiming_uniform_(self.fc1.weight)
+        torch.nn.init.xavier_uniform_(self.fc1_.weight)
         # Output 2 values: fly up and do nothing
         self.fc2 = nn.Linear(512, self.actionSpaceSize)
         self.fc2_ = nn.Linear(512, 1)
@@ -27,6 +29,7 @@ class NeuralNetwork_Recurrent(nn.Module):
         torch.nn.init.xavier_uniform_(self.fc2_.weight)
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU(inplace=True)
+        self.dropout = nn.Dropout(0.2)
 
     def forward(self, x, hidden, cell):
         x = x.to(device)
@@ -38,7 +41,7 @@ class NeuralNetwork_Recurrent(nn.Module):
         # Flatten output to feed into fully connected layers
         x = x.view(x.size()[0], -1)
         x = torch.unsqueeze(x,  axis = 0)
-        #x = self.relu(self.fc1(x))
+        x = self.relu(self.fc1(x))
         x , (next_hidden, next_cell) = self.lstm(x, (hidden, cell))
         x = self.fc2(x)
         return x, next_hidden, next_cell
@@ -51,7 +54,7 @@ class NeuralNetwork_Recurrent(nn.Module):
         x = self.relu(self.conv3(x))
         # Flatten output to feed into fully connected layers
         x = x.view(x.size()[0], -1)
-        x = self.relu(self.fc1(x))
+        x = self.relu(self.dropout(self.fc1_(x)))
         x = self.fc2_(x)
         return x
 

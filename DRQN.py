@@ -22,9 +22,23 @@ class DRQN(nn.Module):
         self.EPSILON = epsilon
         self.EPSILON_MIN = epsilon_min
         self.EPSILON_DECAY = (self.EPSILON-self.EPSILON_MIN)/epsilon_decay
+        self.ones = 0
+        self.zeros = 0
 
     def update_replay_memory(self, transition):
-        self.replay_memory.append(transition)
+        if len(self.replay_memory) < self.REPLAY_MEMORY_SIZE:
+            self.replay_memory.append(transition)
+        else:
+            first_element = self.replay_memory[0][5]
+            if first_element == 1.0:
+                self.ones -= 1
+            else:
+                self.zeros -= 1
+            self.replay_memory.append(transition)
+        if transition[5] == 1.0:
+            self.ones += 1
+        else:
+            self.zeros += 1
 
     def train(self, agent, target, loss_fn, loss_fn_detector, optimizer):
         batch = random.sample(self.replay_memory, self.BATCH_SIZE)

@@ -46,8 +46,6 @@ def train(game):
     total_kills = 0
     ammo = np.zeros(10)
     weapon = np.zeros(10)
-    preds = 0
-    correct = 0
     for episode in range(1,hyperparameters.EPISODES+500000000000):
         loss = loss_navi = accuracy= None
         obs,labels = env.reset()
@@ -61,6 +59,12 @@ def train(game):
         kills = 0 ## 5 for breakout, 3 for spaceinvaders, 0 for pong, 3 for robotank :D
         h = torch.zeros([1,1, 512])
         c  = torch.zeros([1,1, 512])
+        preds = 0
+        correct = 0
+        pred_enemy = 0
+        pred_not_enemy = 0
+        pred_enemy_correct = 0
+        pred_not_enemy_correct = 0
         while True:
             obs_prev = obs
             enemy_in_frame = check_if_enemy_in_obs(labels)
@@ -69,8 +73,16 @@ def train(game):
             pred_output_p = y.sigmoid(pred_output)
             pred_labels = (pred_output_p > 0.5).float()
             preds += 1
+            if pred_labels.item() == 1.0:
+                pred_enemy += 1
+            if pred_labels.item() == 0.0:
+                pred_not_enemy += 1
             if pred_labels.item() == enemy_in_frame:
                 correct += 1
+            if enemy_in_frame == 1.0 and pred_labels.item() == enemy_in_frame:
+                pred_enemy_correct += 1
+            if enemy_in_frame == 0.0 and pred_labels.item() == enemy_in_frame:
+                pred_not_enemy_correct += 1
             if pred_labels.item() == 1.0 and ammo_left(weapon, ammo) is True:
                 action, h, c = actor.getPrediction(obs /255,y, h, c)
             else:
@@ -89,9 +101,10 @@ def train(game):
             obs = getFrame(obs)
             cache = state.copy()
             state.append(obs)
-            env.render()
+            #env.render()
             #agent.update_replay_memory((obs_prev, action, clip_reward(reward), obs , done))
-            if pred_labels.item() == 1.0 or (enemy_in_frame == 1.0 and  frames_seen <100000):
+            #if pred_labels.item() == 1.0 or (enemy_in_frame == 1.0 and  frames_seen < 250000):
+            if pred_labels.item() == 1.0 or frames_seen < 50000:
                 actor.update_replay_memory((obs_prev, action, reward, obs , done, enemy_in_frame))
             if action == 3 or action == 4 or action == 5:
                 navigator.update_replay_memory((makeState(cache), action, reward2, makeState(state) , done))
@@ -116,19 +129,36 @@ def train(game):
                 total_kills += kills
                 break
             
-        print("kills",kills,"avg kills", total_kills/games_played,"deaths", deaths,"Score:", cumureward,"score2:",cumureward2," Episode:", episode, " frames_seen:", frames_seen , " ACTOR_Epsilon:", actor.EPSILON, "NAVI_Epsilon", navigator.EPSILON, " game_accuracy", correct/preds, "actor_replay_memeory_len", len(actor.replay_memory))
-        print(loss, loss_navi, accuracy)
+        print("kills",kills,
+        "deaths", deaths,
+        "Score:", cumureward,
+        "score2:",cumureward2,
+        " Episode:", episode,
+         " frames_seen:", frames_seen , 
+         " ACTOR_Epsilon:", actor.EPSILON,
+          "NAVI_Epsilon", navigator.EPSILON,
+           " episode_accuracy", correct/preds,
+            "enemy_states", actor.ones/len(actor.replay_memory),
+            "not_enemy_states", actor.zeros/len(actor.replay_memory))
+        if len(actor.replay_memory) < hyperparameters.REPLAY_MEMORY_SIZE:
+            print("replay_mem_size",len(actor.replay_memory))
+        if pred_enemy > 0:
+            print("epsisode_acc_enemy_in_frame_pred", pred_enemy_correct / pred_enemy)
+        if pred_not_enemy > 0:
+            print("epsisode_acc_enemy_not_in_frame_pred", pred_not_enemy_correct / pred_not_enemy)
+        print("accuracy", accuracy)
+        print("actor_loss",loss,"navi_loss", loss_navi)
         if loss is not None:
-            wandb.log({"avg kills": total_kills/games_played,"kills": kills,"Reward per episode":cumureward, "Avg reward":(np.sum(np.array(rewards))/episode), "Loss":loss, "training_accuracy": accuracy, "navi loss": loss_navi, " game_accuracy": correct/preds})
+            wandb.log({"avg kills": total_kills/games_played,
+            "kills": kills,"Reward per episode":cumureward, 
+            "Loss":loss, 
+            "training_accuracy": accuracy, 
+            "navi loss": loss_navi, 
+            " episode_accuracy": correct/preds, 
+            "epsisode_acc_enemy_in_frame_pred": pred_enemy_correct / pred_enemy if pred_enemy > 0 else 0,
+            "epsisode_acc_enemy_not_in_frame_pred": pred_not_enemy_correct / pred_not_enemy if pred_not_enemy > 0 else 0,
+            "enemy_in_state_in_replay_memory": actor.ones/len(actor.replay_memory)})
 
 if __name__ == "__main__":
-    #game = 'BreakoutDeterministic-v4'
-    #game = "SpaceInvadersDeterministic-v4"
-    #game = "PongDeterministic-v4"
-    #game = "RobotankDeterministic-v4"
-    #game = "VizdoomDefendCenter-v0"
-    #game = "VizdoomPredictPosition-v0"
-    #game = "VizdoomHealthGathering-v0"
     game = "VizdoomDeathmatch-v0"
-    #game = 'FlappyBird-v0'
     train(game)
